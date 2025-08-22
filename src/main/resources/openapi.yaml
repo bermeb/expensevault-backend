@@ -1,0 +1,658 @@
+openapi: 3.0.3
+info:
+  title: ExpenseVault
+  description: Title
+  version: 1.0.0
+  contact:
+    name: Bernhard M.
+    email: bernhard@bermeb.dev
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Development server
+  - url: https://expensevault.bermeb.dev/v1
+    description: Production server
+
+# For now we are not using OAuth2 or any authentification and leave it for later
+#security:
+#  - oauth2: [read, write]
+
+paths:
+  # Receipt section
+  /receipts:
+    get:
+      tags: [ Receipts ]
+      summary: Get all receipts
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Filter by category name
+        - name: dateFrom
+          in: query
+          description: Start date for filtering receipts
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          description: End date for filtering receipts
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        200:
+          description: List of receipts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptResponse'
+    post:
+      tags: [ Receipts ]
+      summary: Upload and process receipt
+      description: Upload a receipt image file for processing. Only the extracted structured dats is stored permanently.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ file ]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Receipt image file
+                category:
+                  type: string
+                  description: Optional category override
+                description:
+                  type: string
+                  description: Optional manual description
+      responses:
+        201:
+          description: Receipt processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptResponse'
+        400:
+          description: Invalid file or processing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /receipts/{receiptId]:
+    get:
+      tags: [ Receipts ]
+      summary: Get receipt by ID
+      parameters:
+        - name: receiptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Receipt details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptResponse'
+        404:
+          description: Receipt not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [ Receipts ]
+      summary: Update receipt
+      parameters:
+        - name: receiptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiptUpdateRequest'
+      responses:
+        200:
+          description: Receipt updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptResponse'
+        404:
+          description: Receipt not found
+    delete:
+      tags: [ Receipts ]
+      summary: Delete receipt
+      parameters:
+        - name: receiptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        204:
+          description: Receipt deleted
+        404:
+          description: Receipt not found
+
+  /receipts/{receiptId}/reprocess:
+    post:
+      tags: [ Receipts ]
+      summary: Reprocess receipt with new image
+      description: Upload a new image to reprocess OCR data for existing receipt
+      parameters:
+        - name: receiptId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ file ]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: New receipt image file
+      responses:
+        200:
+          description: Receipt reprocessed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptResponse'
+        404:
+          description: Receipt not found
+        400:
+          description: Invalid file format
+
+  # Category section
+  /categories:
+    get:
+      tags: [ Categories ]
+      summary: Get all categories
+      responses:
+        200:
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponse'
+
+    post:
+      tags: [ Categories ]
+      summary: Create new category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreateRequest'
+      responses:
+        201:
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        400:
+          description: Category name already exists
+
+  /categories/{categoryId}:
+    get:
+      tags: [ Categories ]
+      summary: Get category by ID
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Category details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        404:
+          description: Category not found
+
+    put:
+      tags: [ Categories ]
+      summary: Update category
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateRequest'
+      responses:
+        200:
+          description: Category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+
+    delete:
+      tags: [ Categories ]
+      summary: Delete category
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        204:
+          description: Category deleted
+        400:
+          description: Cannot delete category with existing receipts
+
+  # Reports section
+  /reports/summary:
+    get:
+      tags: [ Reports ]
+      summary: Get expense summary
+      parameters:
+        - name: period
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [ WEEK, MONTH, QUARTER, YEAR, CUSTOM ]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+            description: Required when period is CUSTOM
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+            description: Required when period is CUSTOM
+        - name: category
+          in: query
+          schema:
+            type: string
+            description: Filter by category name
+      responses:
+        200:
+          description: Expense summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseSummaryResponse'
+        400:
+          description: Invalid date range or parameters
+
+  # OCR section
+  /ocr/extract:
+    post:
+      tags: [ OCR ]
+      summary: Extract text from image (testing only)
+      description: |
+        Direct OCR endpoint for testing the text extraction functionality.
+        This endpoint only returns OCR results without storing any data.
+        Use this to test OCR accuracy before creating actual receipts.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ file ]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Image file to process (not stored)
+      responses:
+        200:
+          description: OCR extraction successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OcrExtractionResponse'
+        400:
+          description: Invalid file format or OCR failed
+
+components:
+  #  securitySchemes:
+  #    bearerAuth:
+  #      type: http
+  #      scheme: bearer
+  #      bearerFormat: JWT
+
+  schemas:
+    ReceiptResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+          description: Total amount of the receipt
+          example: 24.99
+        currency:
+          type: string
+          default: EUR
+        merchantName:
+          type: string
+          example: "XY Supermarket"
+          required: false
+        description:
+          type: string
+          example: "Weekly groceries"
+          required: false
+        date:
+          type: string
+          format: date
+          example: "2025-08-22"
+        category:
+          $ref: '#/components/schemas/CategoryResponse'
+        ocrData:
+          $ref: '#/components/schemas/OcrDataResponse'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-08-22T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-08-22T11:00:00Z"
+
+    ReceiptUpdateRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: decimal
+          minimum: 0
+        merchantName:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        date:
+          type: string
+          format: date
+        categoryId:
+          type: string
+          format: uuid
+
+    ReceiptPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptResponse'
+        totalElements:
+          type: integer
+          format: int64
+          example: 150
+        totalPages:
+          type: integer
+          example: 8
+        size:
+          type: integer
+          example: 20
+        number:
+          type: integer
+          example: 0
+        first:
+          type: boolean
+          example: true
+        last:
+          type: boolean
+          example: false
+
+    OcrDataResponse:
+      type: object
+      properties:
+        rawText:
+          type: string
+          description: Complete extracted text
+          example: "XY Supermarket\nReceiptNr: 1234\nDate: 22.08.2025\nTotal: 24,99 EUR"
+        confidence:
+          type: number
+          format: float
+          description: OCR confidence score (0-1)
+          minimum: 0
+          maximum: 1
+          example: 0.96
+        processedAt:
+          type: string
+          format: date-time
+          example: "2025-08-22T10:00:05Z"
+        extractedFields:
+          type: object
+          description: Structured data extracted from text
+          properties:
+            detectedAmount:
+              type: number
+              format: decimal
+            detectedDate:
+              type: string
+              format: date
+            detectedMerchant:
+              type: string
+            detectedItems:
+              type: array
+              items:
+                type: string
+
+    OcrExtractionResponse:
+      type: object
+      properties:
+        rawText:
+          type: string
+          description: Raw extracted text
+        confidence:
+          type: number
+          format: float
+          description: Overall confidence score
+        extractedData:
+          type: object
+          description: Parsed receipt data
+          properties:
+            amount:
+              type: number
+              format: decimal
+            date:
+              type: string
+              format: date
+            merchant:
+              type: string
+            items:
+              type: array
+              items:
+                type: string
+        processingTimeMs:
+          type: integer
+          description: Processing time in milliseconds
+
+    CategoryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Groceries"
+        color:
+          type: string
+          description: Hex color code
+          example: "#FF5733"
+        icon:
+          type: string
+          description: Icon identifier
+          example: "shopping_cart"
+        receiptCount:
+          type: integer
+          description: Number of receipts in this category
+          example: 25
+
+    CategoryCreateRequest:
+      type: object
+      required: [ name ]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "Groceries"
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+          example: "#FF5722"
+        icon:
+          type: string
+          description: Icon identifier
+          example: "shopping_cart"
+
+    CategoryUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+        icon:
+          type: string
+
+    ExpenseSummaryResponse:
+      type: object
+      properties:
+        totalAmount:
+          type: number
+          format: decimal
+          example: 1247.50
+        currency:
+          type: string
+          example: EUR
+        receiptCount:
+          type: integer
+          example: 87
+        period:
+          $ref: '#/components/schemas/PeriodInfo'
+        categoryBreakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategorySummary'
+        averagePerDay:
+          type: number
+          format: decimal
+          example: 41.58
+        topMerchants:
+          type: array
+          items:
+            $ref: '#/components/schemas/MerchantSummary'
+
+    PeriodInfo:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date
+          example: "2025-01-01"
+        endDate:
+          type: string
+          format: date
+          example: "2025-01-31"
+        type:
+          type: string
+          enum: [ WEEK, MONTH, QUARTER, YEAR, CUSTOM ]
+          example: MONTH
+
+    CategorySummary:
+      type: object
+      properties:
+        category:
+          $ref: '#/components/schemas/CategoryResponse'
+        amount:
+          type: number
+          format: decimal
+          example: 324.50
+        percentage:
+          type: number
+          format: float
+          example: 26.01
+        receiptCount:
+          type: integer
+          example: 15
+
+    MerchantSummary:
+      type: object
+      properties:
+        merchantName:
+          type: string
+          example: "XY Supermarkt"
+        amount:
+          type: number
+          format: decimal
+          example: 156.75
+        receiptCount:
+          type: integer
+          example: 8
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "RECEIPT_NOT_FOUND"
+        message:
+          type: string
+          example: "Receipt with ID 123e4567-e89b-12d3-a456-426614174000 not found"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-08-22T10:30:00Z"
+        path:
+          type: string
+          example: "/api/v1/receipts/123e4567-e89b-12d3-a456-426614174000"
