@@ -363,6 +363,15 @@ components:
   schemas:
     ReceiptResponse:
       type: object
+      required:
+        - id
+        - amount
+        - currency
+        - date
+        - category
+        - ocrData
+        - createdAt
+        - updatedAt
       properties:
         id:
           type: string
@@ -378,11 +387,9 @@ components:
         merchantName:
           type: string
           example: "XY Supermarket"
-          required: false
         description:
           type: string
           example: "Weekly groceries"
-          required: false
         date:
           type: string
           format: date
