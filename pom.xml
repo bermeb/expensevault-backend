@@ -127,7 +127,7 @@
                             <inputSpec>${project.basedir}/src/main/resources/openapi.yaml</inputSpec>
                             <generatorName>spring</generatorName>
                             <configOptions>
-                                <sourceFolder>src/gen/java/main</sourceFolder>
+                                <sourceFolder>src/gen/main/java</sourceFolder>
                                 <basePackage>dev.bermeb.expensevault.api</basePackage>
                                 <configPackage>dev.bermeb.expensevault.api.config</configPackage>
                                 <modelPackage>dev.bermeb.expensevault.api.model</modelPackage>
