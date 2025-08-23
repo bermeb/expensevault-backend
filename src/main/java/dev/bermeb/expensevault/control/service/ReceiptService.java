@@ -3,6 +3,7 @@ package dev.bermeb.expensevault.control.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.bermeb.expensevault.boundary.dto.request.ReceiptUpdateRequest;
 import dev.bermeb.expensevault.boundary.dto.response.OcrResult;
+import dev.bermeb.expensevault.control.exception.CategoryNotFoundException;
 import dev.bermeb.expensevault.entity.model.Category;
 import dev.bermeb.expensevault.entity.model.OcrData;
 import dev.bermeb.expensevault.entity.model.Receipt;
@@ -82,7 +83,7 @@ public class ReceiptService {
         return savedReceipt;
     }
 
-    public Receipt update(Receipt receipt, ReceiptUpdateRequest request) throws Exception {
+    public Receipt update(Receipt receipt, ReceiptUpdateRequest request) {
         if (request.getAmount() != null) {
             receipt.setAmount(request.getAmount());
         }
@@ -97,7 +98,7 @@ public class ReceiptService {
         }
         if (request.getCategoryId() != null) {
             Category category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new Exception(String.valueOf(request.getCategoryId()))); // TODO: Replace with custom exception
+                    .orElseThrow(() -> new CategoryNotFoundException(request.getCategoryId()));
             receipt.setCategory(category);
         }
 
@@ -139,9 +140,9 @@ public class ReceiptService {
     }
 
     @Transactional(readOnly = true)
-    public Category findCategoryByName(String categoryName) throws Exception {
+    public Category findCategoryByName(String categoryName) {
         return categoryRepository.findByName(categoryName)
-                .orElseThrow(() -> new Exception("Category not found: " + categoryName)); // TODO: Replace with custom exception
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found: " + categoryName));
     }
 
     private String convertToJson(OcrResult ocrResult) {

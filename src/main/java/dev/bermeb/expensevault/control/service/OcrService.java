@@ -3,6 +3,7 @@ package dev.bermeb.expensevault.control.service;
 import com.google.cloud.vision.v1.*;
 import com.google.protobuf.ByteString;
 import dev.bermeb.expensevault.boundary.dto.response.OcrResult;
+import dev.bermeb.expensevault.control.exception.OrcProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -56,7 +57,7 @@ public class OcrService {
     }
 
     // TODO: Add "multiple images"-receipt handling
-    public OcrResult extractReceiptData(byte[] imageData) throws Exception {
+    public OcrResult extractReceiptData(byte[] imageData) {
         try {
             log.debug("Starting OCR processing for image of size: {} bytes", imageData.length);
 
@@ -78,12 +79,12 @@ public class OcrService {
             AnnotateImageResponse imgResponse = response.getResponses(0);
 
             if (imgResponse.hasError()) {
-                throw new Exception("Google Vision API error: " +
-                        imgResponse.getError().getMessage()); // TODO: Replace with custom exception
+                throw new OrcProcessingException("Google Vision API error: "
+                        + imgResponse.getError().getMessage());
             }
 
             if (imgResponse.getTextAnnotationsList().isEmpty()) {
-                throw new Exception("No text detected in image"); // TODO: Replace with custom exception
+                throw new OrcProcessingException("No text detected in the image");
             }
 
             String extractedText = imgResponse.getTextAnnotations(0).getDescription();
@@ -94,7 +95,7 @@ public class OcrService {
            return parseReceiptText(extractedText, confidence);
         } catch (Exception e) {
             log.error("OCR processing failed: {}", e.getMessage());
-            throw new Exception("Failed to process image for OCR", e); // TODO: Replace with custom exception
+            throw new OrcProcessingException("Failed to process image for OCR", e);
         }
     }
 
