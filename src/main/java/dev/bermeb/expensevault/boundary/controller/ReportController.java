@@ -24,6 +24,7 @@ public class ReportController {
 
     private final ReportService reportService;
 
+    // TODO: Add period presets (e.g., last month, last quarter) and category filtering
     @GetMapping("/summary")
     @Operation(summary = "Get Expense Summary", description = "Retrieve a summary of expenses over a specified period.")
     public ResponseEntity<ExpenseSummaryResponse> getExpenseSummary(

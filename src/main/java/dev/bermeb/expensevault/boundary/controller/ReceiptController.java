@@ -181,7 +181,7 @@ public class ReceiptController {
 
         String contentType = file.getContentType();
         if (contentType == null || !isValidImageType(contentType)) {
-            throw new InvalidFileException("Unsupported file type: " + contentType + "\nSupported types are: PNG, JPG and PDF");
+            throw new InvalidFileException("Unsupported file type: " + contentType + ". Supported types are: PNG, JPG and PDF");
         }
 
         if (file.getSize() > 10 * 1024 * 1024) { // 10 MB limit

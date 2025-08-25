@@ -62,6 +62,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
+    @ExceptionHandler(CategoryHasReceiptsException.class)
+    public ResponseEntity<ErrorResponse> handleCategoryHasReceipts(CategoryHasReceiptsException ex, WebRequest request) {
+        log.warn("Category deletion failed: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .error(ex.getErrorCode())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @ExceptionHandler(OrcProcessingException.class)
     public ResponseEntity<ErrorResponse> handleOrcProcessing(OrcProcessingException ex, WebRequest request) {
         log.error("OCR processing failed: {}", ex.getMessage());

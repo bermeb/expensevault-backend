@@ -7,7 +7,7 @@ public class ReceiptNotFoundException extends BaseException {
     private static final String ERROR_CODE = "RECEIPT_NOT_FOUND";
 
     public ReceiptNotFoundException(UUID uuid) {
-        super("Receipt with ID " + uuid + " not found.");
+        super("Receipt with ID " + uuid + " not found");
     }
 
     public ReceiptNotFoundException(String message) {

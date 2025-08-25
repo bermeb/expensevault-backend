@@ -25,6 +25,7 @@ public class ReportService {
     private final ReceiptRepository receiptRepository;
 
     // TODO: Add category filtering and other report types?
+    // TODO: Add check for startDate before endDate
     public ExpenseSummaryResponse generateSummary(LocalDate startDate, LocalDate endDate) {
         log.info("Generating expense summary for period: {} to {}", startDate, endDate);
 

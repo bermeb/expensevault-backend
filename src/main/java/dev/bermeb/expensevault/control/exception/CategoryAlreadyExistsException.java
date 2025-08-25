@@ -5,7 +5,7 @@ public class CategoryAlreadyExistsException extends BaseException {
     private static final String ERROR_CODE = "CATEGORY_ALREADY_EXISTS";
 
     public CategoryAlreadyExistsException(String categoryName) {
-        super("Category with name '" + categoryName + "' already exists.");
+        super("Category with name '" + categoryName + "' already exists");
     }
 
     @Override

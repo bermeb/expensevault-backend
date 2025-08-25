@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ExpenseVault
-  description: Title
+  description: Receipt-based expense tracking with OCR automation and categorization
   version: 1.0.0
   contact:
     name: Bernhard M.
@@ -50,7 +50,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReceiptResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReceiptResponse'
+        400:
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
     post:
       tags: [ Receipts ]
       summary: Upload and process receipt
@@ -66,7 +81,7 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: Receipt image file
+                  description: Receipt image file (JPG; PNG, PDF max 10MB)
                 category:
                   type: string
                   description: Optional category override
@@ -86,8 +101,57 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_file:
+                  summary: Invalid file type
+                  value:
+                    error: "INVALID_FILE"
+                    message: "Unsupported file type: GIF. Supported types are: PNG, JPG and PDF"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/receipts"
+                category_not_found:
+                  summary: Category not found
+                  value:
+                    error: "CATEGORY_NOT_FOUND"
+                    message: "Category not found: InvalidCategory"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/receipts"
+        413:
+          description: File size exceeds maximum limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                summary: File size exceeded
+                value:
+                  error: "FILE_SIZE_EXCEEDED"
+                  message: "File size exceeds the maximum limit of 10MB"
+                  timestamp: "2025-08-22T10:30:00Z"
+                  path: "/api/v1/receipts"
+        500:
+          description: OCR processing failed or internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                ocr_failed:
+                  summary: OCR processing failed
+                  value:
+                    error: "OCR_PROCESSING_FAILED"
+                    message: "Google Vision API error: Quota exceeded"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/receipts"
+                processing_failed:
+                  summary: Receipt processing failed
+                  value:
+                    error: "RECEIPT_PROCESSING_FAILED"
+                    message: "Receipt processing failed"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/receipts"
 
-  /receipts/{receiptId]:
+  /receipts/{receiptId}:
     get:
       tags: [ Receipts ]
       summary: Get receipt by ID
@@ -105,12 +169,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReceiptResponse'
+        400:
+          description: Invalid UUID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         404:
           description: Receipt not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "RECEIPT_NOT_FOUND"
+                message: "Receipt with ID 123e4567-e89b-12d3-a456-426614174000 not found"
+                timestamp: "2025-08-22T10:30:00Z"
+                path: "/api/v1/receipts/123e4567-e89b-12d3-a456-426614174000"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
     put:
       tags: [ Receipts ]
       summary: Update receipt
@@ -134,8 +216,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReceiptResponse'
+        400:
+          description: Invalid input data or UUID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_failed:
+                  summary: Validation failed
+                  value:
+                    error: "VALIDATION_FAILED"
+                    message: "Validation failed: {amount=must be greater than 0}"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/receipts/123e4567-e89b-12d3-a456-426614174000"
+                category_not_found:
+                  summary: Category not found
+                  value:
+                    error: "CATEGORY_NOT_FOUND"
+                    message: "Category with ID 456e7890-e89b-12d3-a456-426614174000 not found"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/receipts/123e4567-e89b-12d3-a456-426614174000"
         404:
           description: Receipt not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
     delete:
       tags: [ Receipts ]
       summary: Delete receipt
@@ -149,8 +263,24 @@ paths:
       responses:
         204:
           description: Receipt deleted
+        400:
+          description: Invalid UUID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         404:
           description: Receipt not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /receipts/{receiptId}/reprocess:
     post:
@@ -183,10 +313,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReceiptResponse'
+        400:
+          description: Invalid file format or UUID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_file:
+                  summary: Invalid file type
+                  value:
+                    error: "INVALID_FILE"
+                    message: "Only JPG, PNG, and PDF files are allowed"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/receipts/123e4567-e89b-12d3-a456-426614174000/reprocess"
         404:
           description: Receipt not found
-        400:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        413:
+          description: File size exceeds maximum limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                summary: File size exceeded
+                value:
+                  error: "FILE_SIZE_EXCEEDED"
+                  message: "File size exceeds the maximum limit of 10MB"
+                  timestamp: "2025-08-22T10:30:00Z"
+                  path: "/api/v1/receipts/123e4567-e89b-12d3-a456-426614174000/reprocess"
+        500:
           description: Invalid file format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                ocr_failed:
+                  summary: OCR processing failed
+                  value:
+                    error: "OCR_PROCESSING_FAILED"
+                    message: "Google Vision API error: Quota exceeded"
+                    timestamp: "2025-08-22T10:30:00Z"
 
   # Category section
   /categories:
@@ -202,6 +374,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CategoryResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     post:
       tags: [ Categories ]
@@ -220,7 +398,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/CategoryResponse'
         400:
+          description: Invalid input data or validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_failed:
+                  summary: Validation failed
+                  value:
+                    error: "VALIDATION_FAILED"
+                    message: "Validation failed: {name=must not be blank}"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/categories"
+        409:
           description: Category name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "CATEGORY_ALREADY_EXISTS"
+                message: "Category with name 'Groceries' already exists"
+                timestamp: "2025-08-22T10:30:00Z"
+                path: "/api/v1/categories"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /categories/{categoryId}:
     get:
@@ -240,8 +447,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CategoryResponse'
+        400:
+          description: Invalid UUID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         404:
           description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "CATEGORY_NOT_FOUND"
+                message: "Category with ID 123e4567-e89b-12d3-a456-426614174000 not found"
+                timestamp: "2025-08-22T10:30:00Z"
+                path: "/api/v1/categories/123e4567-e89b-12d3-a456-426614174000"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     put:
       tags: [ Categories ]
@@ -266,6 +494,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CategoryResponse'
+        400:
+          description: Invalid input data or UUID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_failed:
+                  summary: Validation failed
+                  value:
+                    error: "VALIDATION_FAILED"
+                    message: "Validation failed: {color=Color must be a valid hex color code}"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/categories/123e4567-e89b-12d3-a456-426614174000"
+        404:
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        409:
+          description: Category name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "CATEGORY_ALREADY_EXISTS"
+                message: "Category with name 'Groceries' already exists"
+                timestamp: "2025-08-22T10:30:00Z"
+                path: "/api/v1/categories/123e4567-e89b-12d3-a456-426614174000"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     delete:
       tags: [ Categories ]
@@ -281,7 +546,28 @@ paths:
         204:
           description: Category deleted
         400:
-          description: Cannot delete category with existing receipts
+          description: Cannot delete category with existing receipts or invalid UUID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "CATEGORY_HAS_RECEIPTS"
+                message: "Cannot delete category with existing receipts"
+                timestamp: "2025-08-22T10:30:00Z"
+                path: "/api/v1/categories/123e4567-e89b-12d3-a456-426614174000"
+        404:
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # Reports section
   /reports/summary:
@@ -289,12 +575,6 @@ paths:
       tags: [ Reports ]
       summary: Get expense summary
       parameters:
-        - name: period
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [ WEEK, MONTH, QUARTER, YEAR, CUSTOM ]
         - name: startDate
           in: query
           schema:
@@ -321,6 +601,31 @@ paths:
                 $ref: '#/components/schemas/ExpenseSummaryResponse'
         400:
           description: Invalid date range or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_date_range:
+                  summary: Invalid date range
+                  value:
+                    error: "INVALID_DATE_RANGE"
+                    message: "Start date must be before end date"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/reports/summary"
+                missing_required_params:
+                  summary: Missing required parameters
+                  value:
+                    error: "MISSING_REQUIRED_PARAMETERS"
+                    message: "Both startDate and endDate are required"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/reports/summary"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # OCR section
   /ocr/extract:
@@ -342,7 +647,7 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: Image file to process (not stored)
+                  description: Image file to process
       responses:
         200:
           description: OCR extraction successful
@@ -351,7 +656,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/OcrExtractionResponse'
         400:
-          description: Invalid file format or OCR failed
+          description: Invalid file format or empty file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_file:
+                  summary: Invalid file type
+                  value:
+                    error: "INVALID_FILE"
+                    message: "Unsupported file type: GIF. Supported types are: PNG, JPG and PDF"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/ocr/extract"
+                empty_file:
+                  summary: Empty file
+                  value:
+                    error: "INVALID"
+                    message: "File is empty"
+                    timestamp: "2025-08-22T10:30:00Z"
+                    path: "/api/v1/ocr/extract"
+        413:
+          description: File size exceeds maximum limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                summary: File size exceeded
+                value:
+                  error: "FILE_SIZE_EXCEEDED"
+                  message: "File size exceeds the maximum limit of 10MB"
+                  timestamp: "2025-08-22T10:30:00Z"
+                  path: "/api/v1/ocr/extract"
+        500:
+          description: OCR processing failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "OCR_PROCESSING_FAILED"
+                message: "Google Vision API error: Quota exceeded"
+                timestamp: "2025-08-22T10:30:00Z"
+                path: "/api/v1/ocr/extract"
 
 components:
   #  securitySchemes:
@@ -368,8 +716,6 @@ components:
         - amount
         - currency
         - date
-        - category
-        - ocrData
         - createdAt
         - updatedAt
       properties:
@@ -427,33 +773,6 @@ components:
           type: string
           format: uuid
 
-    ReceiptPageResponse:
-      type: object
-      properties:
-        content:
-          type: array
-          items:
-            $ref: '#/components/schemas/ReceiptResponse'
-        totalElements:
-          type: integer
-          format: int64
-          example: 150
-        totalPages:
-          type: integer
-          example: 8
-        size:
-          type: integer
-          example: 20
-        number:
-          type: integer
-          example: 0
-        first:
-          type: boolean
-          example: true
-        last:
-          type: boolean
-          example: false
-
     OcrDataResponse:
       type: object
       properties:
@@ -491,6 +810,10 @@ components:
 
     OcrExtractionResponse:
       type: object
+      required:
+        - rawText
+        - extractedData
+        - processingTimeMs
       properties:
         rawText:
           type: string
@@ -521,6 +844,9 @@ components:
 
     CategoryResponse:
       type: object
+      required:
+        - id
+        - name
       properties:
         id:
           type: string
@@ -574,6 +900,11 @@ components:
 
     ExpenseSummaryResponse:
       type: object
+      required:
+        - totalAmount
+        - currency
+        - receiptCount
+        - period
       properties:
         totalAmount:
           type: number
@@ -602,6 +933,10 @@ components:
 
     PeriodInfo:
       type: object
+      required:
+        - startDate
+        - endDate
+        - type
       properties:
         startDate:
           type: string
@@ -618,6 +953,10 @@ components:
 
     CategorySummary:
       type: object
+      required:
+        - category
+        - amount
+        - receiptCount
       properties:
         category:
           $ref: '#/components/schemas/CategoryResponse'
@@ -635,6 +974,10 @@ components:
 
     MerchantSummary:
       type: object
+      required:
+        - merchantName
+        - amount
+        - receiptCount
       properties:
         merchantName:
           type: string
@@ -649,6 +992,11 @@ components:
 
     ErrorResponse:
       type: object
+      required:
+        - error
+        - message
+        - timestamp
+        - path
       properties:
         error:
           type: string

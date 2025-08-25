@@ -3,6 +3,7 @@ package dev.bermeb.expensevault.control.service;
 import dev.bermeb.expensevault.boundary.dto.request.CategoryCreateRequest;
 import dev.bermeb.expensevault.boundary.dto.request.CategoryUpdateRequest;
 import dev.bermeb.expensevault.control.exception.CategoryAlreadyExistsException;
+import dev.bermeb.expensevault.control.exception.CategoryHasReceiptsException;
 import dev.bermeb.expensevault.control.exception.CategoryNotFoundException;
 import dev.bermeb.expensevault.entity.model.Category;
 import dev.bermeb.expensevault.entity.repository.CategoryRepository;
@@ -74,8 +75,11 @@ public class CategoryService {
     }
 
     public void deleteById(UUID id) {
-        if (!categoryRepository.existsById(id)) {
-            throw new CategoryNotFoundException(id);
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new CategoryNotFoundException(id));
+
+        if(!category.getReceipts().isEmpty()) {
+            throw new CategoryHasReceiptsException(id);
         }
 
         categoryRepository.deleteById(id);
